@@ -1,3 +1,7 @@
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 from typing import List
 import keras
 import cv2
@@ -60,7 +64,7 @@ def extract_squares(image_data: np.ndarray) -> np.ndarray:
 
 def set_below_confidence_to_empty(
     y_pred: np.ndarray, y_labels: list, confidence: float
-) -> dict:
+) -> list:
     y_max = np.amax(y_pred, axis=1)
     y_dict = {}
 
@@ -74,7 +78,7 @@ def set_below_confidence_to_empty(
     return [x[0] for x in y_dict.values()]
 
 
-def parse_board(image_data: bytes, to_play: str) -> chess.Board():
+def parse_board(image_data: bytes, to_play: str) -> chess.Board:
     # Read the image and resize it to 400×400
     photo = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
     photo = cv2.resize(photo, (board_size, board_size), interpolation=cv2.INTER_AREA)
@@ -83,7 +87,7 @@ def parse_board(image_data: bytes, to_play: str) -> chess.Board():
     squares = extract_squares(photo)
 
     # Predict the piece in each square
-    y_pred = model.predict(squares)
+    y_pred = model.predict(squares, verbose=0)
 
     # Convert the one-hot encoded predictions back to the original labels
     y_labels = restore_onehot(y_pred)
@@ -113,3 +117,20 @@ def get_fen(image_data: bytes, to_play: str) -> str:
     except Exception as e:
         print(e)
         return ""
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 3:
+        print("Usage: python chess_eye.py <path_to_image> <to_play>")
+        sys.exit(1)
+
+    image_path = sys.argv[1]
+    to_play = sys.argv[2]
+
+    image_data = open(image_path, "rb").read()
+
+    fen = get_fen(image_data, to_play)
+
+    print(fen)
